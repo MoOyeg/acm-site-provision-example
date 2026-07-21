@@ -16,8 +16,33 @@ cluster registers itself back into ACM.
 argocd/applicationset.yaml   Git generator — one Argo CD Application per sites/* folder
 sites/<cluster>/
 ├─ namespace.yaml            must match the cluster name; the templates hardcode it
-└─ clusterinstance.yaml      the site definition
+├─ clusterinstance.yaml      the site definition
+└─ extra-manifests.yaml      MachineConfigs applied to this site during install
 ```
+
+## Install-time customisation
+
+`extra-manifests.yaml` holds a ConfigMap of manifests referenced from the
+ClusterInstance via `spec.extraManifestsRefs`. The SiteConfig operator passes it
+to the Assisted Installer (as `AgentClusterInstall.spec.manifestsConfigMapRefs`)
+and its contents are applied to the site **while the cluster is installing** — so
+each location comes up already configured, with no post-install drift to chase.
+
+| Site | Profile | MachineConfigs |
+|---|---|---|
+| `sno1-cluster2` | Telco far-edge (RAN DU) | `02-master-workload-partitioning` — reserve CPUs 0-1 for platform workloads; site chrony |
+| `sno2-cluster2` | Retail / industrial edge | `99-master-journald-limits` — cap journal growth on constrained hardware; site chrony |
+
+Two things to know before copying this pattern:
+
+- **Put MachineConfigs in `extraManifestsRefs`, not `templateRefs`.** Cluster-level
+  templates render resources onto the *hub*; a MachineConfig placed there would be
+  created on the hub and applied to the hub's own nodes.
+- **`extraManifestsRefs` is immutable after the ClusterInstance is created.** The
+  admission webhook rejects adding or changing it on an installed site
+  (`unauthorized changes in immutable fields: /extraManifestsRefs`). These
+  manifests take effect on install or reinstall only — which is the intent, since
+  it is what guarantees every site boots identically.
 
 ## The separation of concerns
 

@@ -33,6 +33,7 @@ spec:
   templateRefs:
     - name: ai-cluster-templates-v1
       namespace: open-cluster-management
+
   nodes:
     - hostName: "sno2.sno2-cluster2.tide.lan"
       role: master
