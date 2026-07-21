@@ -1,0 +1,45 @@
+# Slide 15 — one Argo CD Application per site folder, generated from Git.
+#
+# The Git generator scans fleet/sites/* and creates an Application for each
+# directory it finds. Adding a new site to the fleet is therefore a matter of
+# committing a new folder: no Argo CD configuration changes, no new pipeline.
+#
+# automated + prune + selfHeal is what makes Git the single source of truth --
+# if someone edits a ClusterInstance on the hub by hand, Argo CD puts it back.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: remote-sites
+  namespace: openshift-gitops
+spec:
+  goTemplate: true
+  goTemplateOptions: [missingkey=error]
+  generators:
+    - git:
+        repoURL: https://github.com/MoOyeg/acm-site-provision-example.git
+        revision: main
+        directories:
+          - path: sites/*
+  template:
+    metadata:
+      name: 'site-{{.path.basename}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/MoOyeg/acm-site-provision-example.git
+        targetRevision: main
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - CreateNamespace=true
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m
