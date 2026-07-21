@@ -75,3 +75,44 @@ spec:
       templateRefs:
         - name: ai-node-templates-v1
           namespace: open-cluster-management
+    - hostName: "sno1-worker1.sno1-cluster2.tide.lan"
+      role: worker
+      bootMode: legacy
+      # The libvirt domain behind the sushy-tools Redfish emulator.
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/76150859-1a23-456d-905d-49c44b47014d"
+      bmcCredentialsName:
+        name: sno1-worker1-bmc-credentials
+      bootMACAddress: "52:54:00:a1:00:02"
+      rootDeviceHints:
+        deviceName: /dev/vda
+      nodeNetwork:
+        # Maps the MAC to the logical name used in config below, so nmstate
+        # binds to the right NIC regardless of how the guest enumerates it.
+        interfaces:
+          - name: enp1s0
+            macAddress: "52:54:00:a1:00:02"
+        config:
+          interfaces:
+            - name: enp1s0
+              type: ethernet
+              state: up
+              ipv4:
+                enabled: true
+                dhcp: false
+                address:
+                  - ip: 192.168.5.202
+                    prefix-length: 23
+              ipv6:
+                enabled: false
+          dns-resolver:
+            config:
+              server:
+                - 192.168.5.5
+          routes:
+            config:
+              - destination: 0.0.0.0/0
+                next-hop-address: 192.168.5.5
+                next-hop-interface: enp1s0
+      templateRefs:
+        - name: ai-node-templates-v1
+          namespace: open-cluster-management
