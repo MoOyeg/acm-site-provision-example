@@ -38,7 +38,7 @@ spec:
       role: master
       bootMode: legacy
       # The libvirt domain behind the sushy-tools Redfish emulator.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/7747c1e7-b98d-4fcf-8f3f-3d2f66e69566"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/cc6cb4f9-717d-4a05-8114-412f2be902ab"
       bmcCredentialsName:
         name: sno1-bmc-credentials
       bootMACAddress: "52:54:00:a1:00:01"
