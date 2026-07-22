@@ -1,0 +1,24 @@
+#
+# Ansible managed
+#
+# The ACM addons to run on tnf once the klusterlet is installed:
+# policy, search, application management and cert policy.
+apiVersion: agent.open-cluster-management.io/v1
+kind: KlusterletAddonConfig
+metadata:
+  name: tnf
+  namespace: tnf
+spec:
+  clusterName: tnf
+  clusterNamespace: tnf
+  clusterLabels:
+    cloud: BareMetal
+    vendor: OpenShift
+  applicationManager:
+    enabled: true
+  policyController:
+    enabled: true
+  searchCollector:
+    enabled: true
+  certPolicyController:
+    enabled: true

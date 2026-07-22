@@ -1,0 +1,8 @@
+#
+# Ansible managed
+#
+# ACM keeps each managed cluster's resources in a namespace named after it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tnf

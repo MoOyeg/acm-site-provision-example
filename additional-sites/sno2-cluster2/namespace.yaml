@@ -1,3 +1,8 @@
+#
+# Ansible managed
+#
+# The installation templates hardcode `namespace: {{ .Spec.ClusterName }}`,
+# so the namespace, the cluster name and this folder name must all agree.
 apiVersion: v1
 kind: Namespace
 metadata:
