@@ -73,9 +73,20 @@ spec:
                   sourceNamespace: openshift-marketplace
                   name: multicluster-engine
                   installPlanApproval: Automatic
-                  # Resolved on the target cluster -- see the note in the
-                  # OpenShift Virtualization policy.
-                  channel: '{{ (lookup "packages.operators.coreos.com/v1" "PackageManifest" "openshift-marketplace" "multicluster-engine").status.defaultChannel }}'
+                  # No channel is pinned on purpose. Channel names differ
+                  # between OCP versions, and a channel that does not exist
+                  # gives a Subscription that silently installs nothing -- this
+                  # policy has to work on clusters running versions the hub does
+                  # not. With spec.channel unset, OLM resolves the package's own
+                  # default channel on the target cluster, which is the right
+                  # answer everywhere.
+                  #
+                  # An ACM `lookup` of the PackageManifest would express the same
+                  # thing, but ACM template lookups establish a watch and
+                  # PackageManifest is an aggregated API that does not support
+                  # one: "cannot be watched: watch not supported on this
+                  # resource".
+
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
         kind: ConfigurationPolicy

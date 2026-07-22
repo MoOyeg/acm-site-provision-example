@@ -66,15 +66,20 @@ spec:
                   sourceNamespace: openshift-marketplace
                   name: kubevirt-hyperconverged
                   installPlanApproval: Automatic
-                  # Read from the target cluster's own catalog at enforcement
-                  # time. Channel names differ between OCP versions and a
-                  # channel that does not exist yields a Subscription that
-                  # silently installs nothing -- and this policy is meant to
-                  # work on clusters running versions the hub does not.
-                  # If the lookup yields nothing, the empty value makes OLM fall
-                  # back to the package's default channel, which is the same
-                  # answer.
-                  channel: '{{ (lookup "packages.operators.coreos.com/v1" "PackageManifest" "openshift-marketplace" "kubevirt-hyperconverged").status.defaultChannel }}'
+                  # No channel is pinned on purpose. Channel names differ
+                  # between OCP versions, and a channel that does not exist
+                  # gives a Subscription that silently installs nothing -- this
+                  # policy has to work on clusters running versions the hub does
+                  # not. With spec.channel unset, OLM resolves the package's own
+                  # default channel on the target cluster, which is the right
+                  # answer everywhere.
+                  #
+                  # An ACM `lookup` of the PackageManifest would express the same
+                  # thing, but ACM template lookups establish a watch and
+                  # PackageManifest is an aggregated API that does not support
+                  # one: "cannot be watched: watch not supported on this
+                  # resource".
+
     - objectDefinition:
         apiVersion: policy.open-cluster-management.io/v1
         kind: ConfigurationPolicy
