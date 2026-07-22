@@ -34,9 +34,6 @@ spec:
         revision: main
         directories:
           - path: sites/*
-          # DISABLED — the manifests under additional-sites/ are complete and ready;
-          # this one line is what keeps them out of the fleet. Uncomment and
-          # push to bring those sites in.
           - path: additional-sites/*
           - path: sites-tnf/*
   template:
