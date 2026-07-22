@@ -34,9 +34,9 @@ spec:
         revision: main
         directories:
           - path: sites/*
-          # DISABLED — uncomment to bring the additional-sites/ folder into the
-          # fleet. The manifests under it are commented out too, so enabling a
-          # site is: uncomment here, uncomment the site, push.
+          # DISABLED — the manifests under additional-sites/ are complete and ready;
+          # this one line is what keeps them out of the fleet. Uncomment and
+          # push to bring those sites in.
           # - path: additional-sites/*
           - path: sites-tnf/*
   template:

@@ -1,8 +1,12 @@
 #
 # Ansible managed
 #
-# ACM keeps each managed cluster's resources in a namespace named after it.
+# The installation templates hardcode `namespace: {{ .Spec.ClusterName }}`,
+# so the namespace, the cluster name and this folder name must all agree.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: tnf
+  labels:
+    # Lets the hub back up and restore this site definition.
+    cluster.open-cluster-management.io/backup: cluster-activation

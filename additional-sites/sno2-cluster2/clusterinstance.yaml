@@ -48,10 +48,11 @@ spec:
     - hostName: "sno2.sno2-cluster2.tide.lan"
       role: master
       bootMode: legacy
-      # The libvirt domain behind the sushy-tools Redfish emulator. The
-      # SiteConfig operator renders the BareMetalHost from this, and Ironic
-      # drives the machine over Redfish virtual media — the IPI hardware path.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/39fabf38-65d8-432d-9954-03182811ee26"
+      automatedCleaningMode: disabled
+      # The libvirt domain behind the sushy-tools Redfish emulator. The operator
+      # renders the BareMetalHost from this and Ironic drives the machine over
+      # Redfish virtual media.
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/20971371-0f80-4599-a441-9580e2f47aee"
       bmcCredentialsName:
         name: sno2-bmc-credentials
       bootMACAddress: "52:54:00:a2:00:01"

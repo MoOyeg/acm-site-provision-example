@@ -1,8 +1,8 @@
 #
 # Ansible managed
 #
-# Site definition for sno1-cluster2 — a single-node OpenShift cluster at a
-# remote site.
+# Site definition for tnf — a 2-node OpenShift cluster at a
+# remote site. Two control-plane nodes with Pacemaker fencing (TNF).
 #
 # This file is the *what*: names, network, and each node's BMC. The *how* lives
 # in the templates referenced by templateRefs, which the SiteConfig operator
@@ -12,13 +12,13 @@
 apiVersion: siteconfig.open-cluster-management.io/v1alpha1
 kind: ClusterInstance
 metadata:
-  name: sno1-cluster2
-  namespace: sno1-cluster2
+  name: tnf
+  namespace: tnf
 spec:
-  clusterName: sno1-cluster2
+  clusterName: tnf
   baseDomain: tide.lan
-  clusterType: SNO
-  clusterImageSetNameRef: img4.20.12-x86-64-appsub
+  clusterType: HighlyAvailable
+  clusterImageSetNameRef: img4.21.11-x86-64-appsub
   cpuArchitecture: x86_64
   networkType: OVNKubernetes
   pullSecretRef:
@@ -31,6 +31,12 @@ spec:
     - cidr: 172.30.0.0/16
   machineNetwork:
     - cidr: 192.168.4.0/23
+  # Required once a cluster has more than one node. Owned by the cluster's own
+  # keepalived, so these must be free addresses rather than node IPs.
+  apiVIPs:
+    - 192.168.4.103
+  ingressVIPs:
+    - 192.168.4.104
   # Swap these for ibi-* templates to install the same site with the
   # Image-Based Installer instead — the site definition does not change.
   templateRefs:
@@ -43,19 +49,25 @@ spec:
   # that are not provisioned yet — otherwise the admission webhook rejects the
   # change and Argo CD can never sync.
   extraManifestsRefs:
-    - name: sno1-cluster2-extra-manifests
+    - name: tnf-extra-manifests
   nodes:
-    - hostName: "sno1.sno1-cluster2.tide.lan"
+    - hostName: "tnf-node1.tnf.tide.lan"
       role: master
       bootMode: legacy
       automatedCleaningMode: disabled
+      extraAnnotations:
+        BareMetalHost:
+          # How Pacemaker gets the credentials to fence its peer. BMAC creates a
+          # fencing-credentials secret from this host's own BMC secret; there is
+          # no fencing field in the ClusterInstance API.
+          bmac.agent-install.openshift.io/create-fencing-credentials-secret: "true"
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/d731c497-bdb7-4139-acd9-31e5661cd9f9"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/9f366979-6765-4610-b5ee-902dcfe0c121"
       bmcCredentialsName:
-        name: sno1-bmc-credentials
-      bootMACAddress: "52:54:00:a1:00:01"
+        name: tnf-node1-bmc-credentials
+      bootMACAddress: "52:54:00:9b:37:f0"
       rootDeviceHints:
         deviceName: /dev/vda
       nodeNetwork:
@@ -64,7 +76,7 @@ spec:
         # regardless of how the guest enumerates it.
         interfaces:
           - name: enp1s0
-            macAddress: "52:54:00:a1:00:01"
+            macAddress: "52:54:00:9b:37:f0"
         config:
           interfaces:
             - name: enp1s0
@@ -74,7 +86,58 @@ spec:
                 enabled: true
                 dhcp: false
                 address:
-                  - ip: 192.168.5.200
+                  - ip: 192.168.4.105
+                    prefix-length: 23
+              ipv6:
+                enabled: false
+          dns-resolver:
+            config:
+              server:
+                - 192.168.5.5
+          routes:
+            config:
+              - destination: 0.0.0.0/0
+                next-hop-address: 192.168.5.5
+                next-hop-interface: enp1s0
+      templateRefs:
+        - name: ai-node-templates-v1
+          namespace: open-cluster-management
+    - hostName: "tnf-node2.tnf.tide.lan"
+      role: master
+      bootMode: legacy
+      automatedCleaningMode: disabled
+      extraAnnotations:
+        BareMetalHost:
+          # How Pacemaker gets the credentials to fence its peer. BMAC creates a
+          # fencing-credentials secret from this host's own BMC secret; there is
+          # no fencing field in the ClusterInstance API.
+          bmac.agent-install.openshift.io/create-fencing-credentials-secret: "true"
+      # The libvirt domain behind the sushy-tools Redfish emulator. The operator
+      # renders the BareMetalHost from this and Ironic drives the machine over
+      # Redfish virtual media.
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/b696a3fa-41d7-4248-bc55-59830ca46f36"
+      bmcCredentialsName:
+        name: tnf-node2-bmc-credentials
+      bootMACAddress: "52:54:00:a9:f6:cd"
+      rootDeviceHints:
+        deviceName: /dev/vda
+      nodeNetwork:
+        # Rendered into an NMStateConfig by the node template. The MAC is mapped
+        # to the logical name used below, so nmstate binds to the right NIC
+        # regardless of how the guest enumerates it.
+        interfaces:
+          - name: enp1s0
+            macAddress: "52:54:00:a9:f6:cd"
+        config:
+          interfaces:
+            - name: enp1s0
+              type: ethernet
+              state: up
+              ipv4:
+                enabled: true
+                dhcp: false
+                address:
+                  - ip: 192.168.4.106
                     prefix-length: 23
               ipv6:
                 enabled: false
