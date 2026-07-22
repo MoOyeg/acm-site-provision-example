@@ -1,0 +1,109 @@
+#
+# Ansible managed
+#
+# Governance, not installation: which clusters get the HPE StorageClass is
+# decided by a label, and ACM keeps it that way.
+#
+# Label a managed cluster with
+#   storage.tide.lan/hpe-csi=enabled
+# and the Placement below selects it, the PlacementBinding ties this Policy to
+# that Placement, and the ConfigurationPolicy enforces the StorageClass on it.
+# Remove the label and the cluster simply drops out of the Placement.
+#
+# The Policy deliberately does NOT carry the TrueNAS credentials. The
+# truenas-secret and the CSI driver itself are installed out of band by
+# roles/tnf_storage, because a Secret in Git is a Secret in everyone's clone.
+# A StorageClass referencing a not-yet-present driver is harmless -- it simply
+# does not provision until the driver arrives.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: hpe-storageclass
+  namespace: open-cluster-management-global-set
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+    policy.open-cluster-management.io/description: >-
+      Ensures the HPE CSI StorageClass and VolumeSnapshotClass exist on every
+      cluster labelled for TrueNAS-backed storage.
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: hpe-storageclass-config
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: storage.k8s.io/v1
+                kind: StorageClass
+                metadata:
+                  name: hpe-storageclass
+                  annotations:
+                    storageclass.kubernetes.io/is-default-class: "true"
+                provisioner: csi.hpe.com
+                parameters:
+                  csi.storage.k8s.io/controller-expand-secret-name: truenas-secret
+                  csi.storage.k8s.io/controller-expand-secret-namespace: hpe-storage
+                  csi.storage.k8s.io/controller-publish-secret-name: truenas-secret
+                  csi.storage.k8s.io/controller-publish-secret-namespace: hpe-storage
+                  csi.storage.k8s.io/node-publish-secret-name: truenas-secret
+                  csi.storage.k8s.io/node-publish-secret-namespace: hpe-storage
+                  csi.storage.k8s.io/node-stage-secret-name: truenas-secret
+                  csi.storage.k8s.io/node-stage-secret-namespace: hpe-storage
+                  csi.storage.k8s.io/provisioner-secret-name: truenas-secret
+                  csi.storage.k8s.io/provisioner-secret-namespace: hpe-storage
+                  csi.storage.k8s.io/fstype: xfs
+                  allowOverrides: sparse,compression,deduplication,volblocksize,sync,description
+                  root: Main/openshift-csi
+                reclaimPolicy: Delete
+                allowVolumeExpansion: true
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: snapshot.storage.k8s.io/v1
+                kind: VolumeSnapshotClass
+                metadata:
+                  name: hpe-storageclass-snap
+                driver: csi.hpe.com
+                deletionPolicy: Delete
+                parameters:
+                  csi.storage.k8s.io/snapshotter-secret-name: truenas-secret
+                  csi.storage.k8s.io/snapshotter-secret-namespace: hpe-storage
+---
+# Selects clusters purely by the custom label. clusterSets: [global] is the
+# set that matches every managed cluster, and the binding for it already exists
+# in this namespace.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: hpe-storageclass-placement
+  namespace: open-cluster-management-global-set
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            storage.tide.lan/hpe-csi: "enabled"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: hpe-storageclass-binding
+  namespace: open-cluster-management-global-set
+placementRef:
+  name: hpe-storageclass-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: hpe-storageclass
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

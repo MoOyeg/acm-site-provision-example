@@ -42,6 +42,7 @@ spec:
           # push to bring those sites in.
           # - path: additional-sites/*
           - path: sites-tnf/*
+          - path: policies/*
   template:
     metadata:
       name: 'site-{{.path.basename}}'
