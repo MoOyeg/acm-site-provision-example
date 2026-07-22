@@ -48,16 +48,19 @@ spec:
     - hostName: "sno1.sno1-cluster2.tide.lan"
       role: master
       bootMode: legacy
-      # The libvirt domain behind the sushy-tools Redfish emulator.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/cb0f76e1-e1b8-41b7-a7a4-2c690b47f900"
+      # The libvirt domain behind the sushy-tools Redfish emulator. The
+      # SiteConfig operator renders the BareMetalHost from this, and Ironic
+      # drives the machine over Redfish virtual media — the IPI hardware path.
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/8dbb3114-ffed-46a3-8620-376a185d8c91"
       bmcCredentialsName:
         name: sno1-bmc-credentials
       bootMACAddress: "52:54:00:a1:00:01"
       rootDeviceHints:
         deviceName: /dev/vda
       nodeNetwork:
-        # Maps the MAC to the logical name used in config below, so nmstate
-        # binds to the right NIC regardless of how the guest enumerates it.
+        # Rendered into an NMStateConfig by the node template. The MAC is mapped
+        # to the logical name used below, so nmstate binds to the right NIC
+        # regardless of how the guest enumerates it.
         interfaces:
           - name: enp1s0
             macAddress: "52:54:00:a1:00:01"

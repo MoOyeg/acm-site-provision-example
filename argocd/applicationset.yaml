@@ -34,7 +34,10 @@ spec:
         revision: main
         directories:
           - path: sites/*
-          - path: additional-sites/*
+          # DISABLED — uncomment to bring the additional-sites/ folder into the
+          # fleet. The manifests under it are commented out too, so enabling a
+          # site is: uncomment here, uncomment the site, push.
+          # - path: additional-sites/*
           - path: sites-tnf/*
   template:
     metadata:
