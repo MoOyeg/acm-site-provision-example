@@ -18,7 +18,7 @@ spec:
   clusterName: tnf
   baseDomain: tide.lan
   clusterType: HighlyAvailable
-  clusterImageSetNameRef: img4.21.11-x86-64-appsub
+  clusterImageSetNameRef: img4.22.6-x86-64-appsub
   cpuArchitecture: x86_64
   networkType: OVNKubernetes
   pullSecretRef:
@@ -64,7 +64,7 @@ spec:
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/fbf8fef9-8a8f-41eb-b1b5-2260d12b50d4"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/26d660e1-5bcb-40a2-9fed-8cc7815e0a99"
       bmcCredentialsName:
         name: tnf-node1-bmc-credentials
       bootMACAddress: "52:54:00:9b:37:f0"
@@ -115,7 +115,7 @@ spec:
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/a0d47556-c573-4fd2-979d-bb1ac3fc52d0"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/2ee542d8-e81d-4073-8843-a8f57ec017a6"
       bmcCredentialsName:
         name: tnf-node2-bmc-credentials
       bootMACAddress: "52:54:00:a9:f6:cd"
