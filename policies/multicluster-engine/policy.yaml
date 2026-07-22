@@ -10,6 +10,18 @@
 # on the spoke, because in the co-located topology the control plane pods and
 # the worker VMs both live there.
 #
+# CAUTION, learned the hard way. A second MCE on a cluster that is *already
+# managed by an ACM hub* is a fight over one namespace: see the note on
+# local-cluster below. With local-cluster disabled this policy installs MCE
+# without disturbing the hub's klusterlet, but it also no longer deploys the
+# HyperShift operator, because that arrives via the local-cluster addon.
+#
+# The supported way to make a *managed* cluster host control planes is from the
+# hub instead: enable hypershift on the hub's own MCE and create a
+# `hypershift-addon` ManagedClusterAddOn in the managed cluster's namespace. The
+# hub then installs the HyperShift operator onto the spoke through the addon,
+# with no second MCE and no klusterlet collision.
+#
 # Depends on the OpenShift Virtualization policy: HyperShift's KubeVirt provider
 # needs a cluster that can actually run VMs, and ACM will hold this policy as
 # Pending until that one reports Compliant rather than installing into a cluster
@@ -105,14 +117,25 @@ spec:
                 spec:
                   overrides:
                     components:
-                      # These three are what make the cluster able to host
-                      # control planes for other clusters.
                       - name: hypershift
                         enabled: true
-                      - name: hypershift-local-hosting
-                        enabled: true
+                      # local-cluster is deliberately FALSE, and this is the
+                      # important line in the file.
+                      #
+                      # Enabling it makes MCE import the cluster into itself,
+                      # which installs a klusterlet in
+                      # open-cluster-management-agent pointing at its own API.
+                      # That namespace already holds the klusterlet the ACM hub
+                      # installed, and a klusterlet is a singleton -- so the
+                      # self-import silently takes it over, the hub's lease
+                      # stops, ACM taints the cluster `unreachable`, and every
+                      # Placement drops it. The cluster keeps running perfectly
+                      # while quietly ceasing to be managed.
                       - name: local-cluster
-                        enabled: true
+                        enabled: false
+                      # Requires local-cluster, so it goes with it.
+                      - name: hypershift-local-hosting
+                        enabled: false
 ---
 # Selects clusters purely by the capability's custom label. clusterSets: [global]
 # is the set that matches every managed cluster, and the ManagedClusterSetBinding
