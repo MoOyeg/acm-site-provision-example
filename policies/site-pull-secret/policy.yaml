@@ -1,0 +1,128 @@
+#
+# Ansible managed
+#
+# Every site namespace on the hub needs a `pull-secret` before the SiteConfig
+# operator will accept its ClusterInstance:
+#
+#   Validation failed: resource validation failed: failed to validate Pull
+#   Secret: [pull-secret in namespace sno2-cluster2], err: Secret
+#   "pull-secret" not found
+#
+# Creating those secrets from Ansible only covered the sites a given run
+# targeted, so committing a site folder and enabling it in the ApplicationSet --
+# the whole "add a site live" demo -- produced a ClusterInstance that could never
+# validate, because nothing had run for that site.
+#
+# This policy covers every site in the fleet regardless of what any run targeted.
+# Adding a site becomes a Git change and nothing else.
+#
+# The credential is NOT in this file. `fromSecret` is an ACM *hub* template: it
+# is resolved by the propagator on the hub, reading the hub's own pull secret at
+# enforcement time, and only the resolved copy reaches the target. This file
+# stays safe to publish, which matters because the fleet repository is public.
+#
+# It targets the hub itself. Site namespaces are hub objects -- they hold the
+# ClusterInstance, not anything on the spoke -- so the Placement selects
+# local-cluster rather than the managed clusters the capability policies select.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: site-pull-secret
+  namespace: open-cluster-management-global-set
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: SC System and Communications Protection
+    policy.open-cluster-management.io/controls: SC-12 Cryptographic Key Management
+    policy.open-cluster-management.io/description: >-
+      Ensures every site namespace on the hub carries the pull secret the
+      SiteConfig operator requires to validate a ClusterInstance.
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: site-pull-secret-config
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: sno1-cluster2
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: pull-secret
+                  namespace: sno1-cluster2
+                type: kubernetes.io/dockerconfigjson
+                data:
+                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: sno2-cluster2
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: pull-secret
+                  namespace: sno2-cluster2
+                type: kubernetes.io/dockerconfigjson
+                data:
+                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: tnf
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Secret
+                metadata:
+                  name: pull-secret
+                  namespace: tnf
+                type: kubernetes.io/dockerconfigjson
+                data:
+                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+---
+# Selects the hub, because that is where the site namespaces live.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: site-pull-secret-placement
+  namespace: open-cluster-management-global-set
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            local-cluster: "true"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: site-pull-secret-binding
+  namespace: open-cluster-management-global-set
+placementRef:
+  name: site-pull-secret-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: site-pull-secret
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy
