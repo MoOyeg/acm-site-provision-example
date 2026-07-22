@@ -67,11 +67,17 @@ changing the site definition itself.
 be true the moment a site boots — and wrong for anything that changes over the
 life of a fleet. That belongs in `policies/`.
 
-`policies/hpe-storage/` delivers an HPE CSI `StorageClass` and
-`VolumeSnapshotClass` to whichever clusters carry a label:
+Each folder there grants one capability to whichever clusters carry its label:
+
+| Policy | Label | Installs |
+|---|---|---|
+| `hpe-storage` | `storage.tide.lan/hpe-csi=enabled` | StorageClass, VolumeSnapshotClass, unique-NQN MachineConfig |
+| `openshift-virtualization` | `virtualization.tide.lan/openshift-virt=enabled` | OpenShift Virtualization |
+| `multicluster-engine` | `hosting.tide.lan/hosted-control-planes=enabled` | MCE + the HyperShift operator |
+
+The selection rule is the whole of the Placement:
 
 ```yaml
-# Placement — the whole cluster-selection rule
 clusterSets: [global]
 predicates:
   - requiredClusterSelector:
@@ -85,17 +91,24 @@ drops it. `remediationAction: enforce` means ACM also repairs drift — delete t
 StorageClass on a spoke and it comes back.
 
 ```console
-$ oc label managedcluster <name> storage.tide.lan/hpe-csi=enabled
+$ oc label managedcluster <name> virtualization.tide.lan/openshift-virt=enabled
 $ oc get policy -n open-cluster-management-global-set
-NAME               REMEDIATION ACTION   COMPLIANCE STATE
-hpe-storageclass   enforce              Compliant
+NAME                       REMEDIATION ACTION   COMPLIANCE STATE
+openshift-virtualization   enforce              Compliant
+multicluster-engine        enforce              Pending
 ```
 
-The policy creates the StorageClass, not the CSI driver — `csi.hpe.com` must
-already be installed on the cluster for a PVC to bind. Note also what the policy
-does *not* contain: the TrueNAS API credentials the driver needs. A `Policy` is
-ordinary hub content, readable by anyone who can read the namespace, so the
-secret is provisioned separately.
+`Pending` is not a failure: the MCE policy declares a `dependencies` entry on the
+virtualization policy, so ACM holds it until that one is `Compliant` rather than
+installing HyperShift's KubeVirt provider into a cluster that cannot run VMs.
+
+Two deliberate omissions. None of these policies pins an operator `channel` —
+channel names differ between OCP versions, and with `spec.channel` unset OLM
+resolves the package's own default channel on the target cluster. And none
+carries a Secret: the HPE CSI driver's TrueNAS credentials are provisioned out of
+band, because a `Policy` is readable by anyone who can read the namespace, and
+this repository is public. The StorageClass is created regardless and is simply
+inert until the driver exists.
 
 ## Adding a site
 
