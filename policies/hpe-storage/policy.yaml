@@ -155,9 +155,9 @@ spec:
                             [Install]
                             WantedBy=multi-user.target
 ---
-# Selects clusters purely by the custom label. clusterSets: [global] is the
-# set that matches every managed cluster, and the binding for it already exists
-# in this namespace.
+# Selects clusters purely by the capability's custom label. clusterSets: [global]
+# is the set that matches every managed cluster, and the ManagedClusterSetBinding
+# for it already exists in this namespace, so the label is the only real filter.
 apiVersion: cluster.open-cluster-management.io/v1beta1
 kind: Placement
 metadata:

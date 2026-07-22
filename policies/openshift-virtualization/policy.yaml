@@ -1,0 +1,130 @@
+#
+# Ansible managed
+#
+# OpenShift Virtualization (KubeVirt), installed on any cluster labelled
+#   virtualization.tide.lan/openshift-virt=enabled
+#
+# The hosted cluster's workers are KubeVirt VMs, so the cluster that hosts them
+# has to be able to run VMs. On the TNF site that is nested virtualization: the
+# nodes are themselves VMs on the KVM host, and expose svm and /dev/kvm.
+#
+# Split into two ConfigurationPolicies on purpose. The operator has to exist
+# before its CRD does, so the HyperConverged in the second one cannot be created
+# on the first pass; keeping it separate means the policy status says which of
+# the two stages a cluster is actually stuck on, instead of one opaque
+# NonCompliant covering both.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: openshift-virtualization
+  namespace: open-cluster-management-global-set
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+    policy.open-cluster-management.io/description: >-
+      Installs OpenShift Virtualization on every cluster labelled to run
+      virtual machines.
+spec:
+  remediationAction: enforce
+  disabled: false
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: openshift-virtualization-operator
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: openshift-cnv
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: operators.coreos.com/v1
+                kind: OperatorGroup
+                metadata:
+                  name: kubevirt-hyperconverged-group
+                  namespace: openshift-cnv
+                spec:
+                  targetNamespaces:
+                    - openshift-cnv
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: operators.coreos.com/v1alpha1
+                kind: Subscription
+                metadata:
+                  name: hco-operatorhub
+                  namespace: openshift-cnv
+                spec:
+                  source: redhat-operators
+                  sourceNamespace: openshift-marketplace
+                  name: kubevirt-hyperconverged
+                  installPlanApproval: Automatic
+                  # Read from the target cluster's own catalog at enforcement
+                  # time. Channel names differ between OCP versions and a
+                  # channel that does not exist yields a Subscription that
+                  # silently installs nothing -- and this policy is meant to
+                  # work on clusters running versions the hub does not.
+                  # If the lookup yields nothing, the empty value makes OLM fall
+                  # back to the package's default channel, which is the same
+                  # answer.
+                  channel: '{{ (lookup "packages.operators.coreos.com/v1" "PackageManifest" "openshift-marketplace" "kubevirt-hyperconverged").status.defaultChannel }}'
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: openshift-virtualization-instance
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: hco.kubevirt.io/v1beta1
+                kind: HyperConverged
+                metadata:
+                  name: kubevirt-hyperconverged
+                  namespace: openshift-cnv
+                spec:
+                  # Software emulation is deliberately NOT enabled: the nodes
+                  # expose svm through nested virtualization, so guests get real
+                  # hardware acceleration.
+                  featureGates:
+                    deployKubeSecondaryDNS: false
+---
+# Selects clusters purely by the capability's custom label. clusterSets: [global]
+# is the set that matches every managed cluster, and the ManagedClusterSetBinding
+# for it already exists in this namespace, so the label is the only real filter.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: openshift-virtualization-placement
+  namespace: open-cluster-management-global-set
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            virtualization.tide.lan/openshift-virt: "enabled"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: openshift-virtualization-binding
+  namespace: open-cluster-management-global-set
+placementRef:
+  name: openshift-virtualization-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: openshift-virtualization
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy

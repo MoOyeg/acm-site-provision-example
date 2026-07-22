@@ -1,0 +1,135 @@
+#
+# Ansible managed
+#
+# MCE + HyperShift — lets this cluster host control planes, installed on any cluster labelled
+#   hosting.tide.lan/hosted-control-planes=enabled
+#
+# MCE is what ships and manages the HyperShift operator, so this is the policy
+# that turns an ordinary managed cluster into one that can host other clusters'
+# control planes. The hub already runs MCE; this puts a second, independent MCE
+# on the spoke, because in the co-located topology the control plane pods and
+# the worker VMs both live there.
+#
+# Depends on the OpenShift Virtualization policy: HyperShift's KubeVirt provider
+# needs a cluster that can actually run VMs, and ACM will hold this policy as
+# Pending until that one reports Compliant rather than installing into a cluster
+# that is not ready for it.
+apiVersion: policy.open-cluster-management.io/v1
+kind: Policy
+metadata:
+  name: multicluster-engine
+  namespace: open-cluster-management-global-set
+  annotations:
+    policy.open-cluster-management.io/standards: NIST SP 800-53
+    policy.open-cluster-management.io/categories: CM Configuration Management
+    policy.open-cluster-management.io/controls: CM-2 Baseline Configuration
+    policy.open-cluster-management.io/description: >-
+      Installs multicluster engine and the HyperShift operator on every cluster
+      labelled to host control planes.
+spec:
+  remediationAction: enforce
+  disabled: false
+  dependencies:
+    - name: openshift-virtualization
+      namespace: open-cluster-management-global-set
+      apiVersion: policy.open-cluster-management.io/v1
+      kind: Policy
+      compliance: Compliant
+  policy-templates:
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: multicluster-engine-operator
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: v1
+                kind: Namespace
+                metadata:
+                  name: multicluster-engine
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: operators.coreos.com/v1
+                kind: OperatorGroup
+                metadata:
+                  name: multicluster-engine
+                  namespace: multicluster-engine
+                spec:
+                  targetNamespaces:
+                    - multicluster-engine
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: operators.coreos.com/v1alpha1
+                kind: Subscription
+                metadata:
+                  name: multicluster-engine
+                  namespace: multicluster-engine
+                spec:
+                  source: redhat-operators
+                  sourceNamespace: openshift-marketplace
+                  name: multicluster-engine
+                  installPlanApproval: Automatic
+                  # Resolved on the target cluster -- see the note in the
+                  # OpenShift Virtualization policy.
+                  channel: '{{ (lookup "packages.operators.coreos.com/v1" "PackageManifest" "openshift-marketplace" "multicluster-engine").status.defaultChannel }}'
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: multicluster-engine-instance
+        spec:
+          remediationAction: enforce
+          severity: medium
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: multicluster.openshift.io/v1
+                kind: MultiClusterEngine
+                metadata:
+                  name: multiclusterengine
+                spec:
+                  overrides:
+                    components:
+                      # These three are what make the cluster able to host
+                      # control planes for other clusters.
+                      - name: hypershift
+                        enabled: true
+                      - name: hypershift-local-hosting
+                        enabled: true
+                      - name: local-cluster
+                        enabled: true
+---
+# Selects clusters purely by the capability's custom label. clusterSets: [global]
+# is the set that matches every managed cluster, and the ManagedClusterSetBinding
+# for it already exists in this namespace, so the label is the only real filter.
+apiVersion: cluster.open-cluster-management.io/v1beta1
+kind: Placement
+metadata:
+  name: multicluster-engine-placement
+  namespace: open-cluster-management-global-set
+spec:
+  clusterSets:
+    - global
+  predicates:
+    - requiredClusterSelector:
+        labelSelector:
+          matchLabels:
+            hosting.tide.lan/hosted-control-planes: "enabled"
+---
+apiVersion: policy.open-cluster-management.io/v1
+kind: PlacementBinding
+metadata:
+  name: multicluster-engine-binding
+  namespace: open-cluster-management-global-set
+placementRef:
+  name: multicluster-engine-placement
+  apiGroup: cluster.open-cluster-management.io
+  kind: Placement
+subjects:
+  - name: multicluster-engine
+    apiGroup: policy.open-cluster-management.io
+    kind: Policy
