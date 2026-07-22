@@ -15,6 +15,17 @@
 # roles/tnf_storage, because a Secret in Git is a Secret in everyone's clone.
 # A StorageClass referencing a not-yet-present driver is harmless -- it simply
 # does not provision until the driver arrives.
+#
+# The second template is a prerequisite the driver enforces rather than a
+# storage object. RHCOS ships /etc/nvme/hostnqn inside the image, so every node
+# installed from the same image boots with an identical NVMe host NQN. The HPE
+# CSI node plugin validates NQN uniqueness and refuses to register on the second
+# node it sees ("Duplicate NQN ... will cause data corruption"), which silently
+# limits the cluster to one storage-capable node. The MachineConfig regenerates
+# the NQN from each node's own DMI system UUID, which is unique per machine.
+#
+# NOTE: this is a MachineConfig. Labelling a cluster into this tier therefore
+# triggers a rolling reboot of its nodes the first time the policy applies.
 apiVersion: policy.open-cluster-management.io/v1
 kind: Policy
 metadata:
@@ -76,6 +87,73 @@ spec:
                 parameters:
                   csi.storage.k8s.io/snapshotter-secret-name: truenas-secret
                   csi.storage.k8s.io/snapshotter-secret-namespace: hpe-storage
+    - objectDefinition:
+        apiVersion: policy.open-cluster-management.io/v1
+        kind: ConfigurationPolicy
+        metadata:
+          name: hpe-storageclass-unique-nqn
+        spec:
+          remediationAction: enforce
+          severity: high
+          object-templates:
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: machineconfiguration.openshift.io/v1
+                kind: MachineConfig
+                metadata:
+                  name: 99-master-unique-nvme-hostnqn
+                  labels:
+                    machineconfiguration.openshift.io/role: master
+                spec:
+                  config:
+                    ignition:
+                      version: 3.4.0
+                    systemd:
+                      units:
+                        - name: nvme-unique-hostnqn.service
+                          enabled: true
+                          contents: |
+                            [Unit]
+                            Description=Derive a unique NVMe host NQN from the system UUID
+                            Before=kubelet.service
+                            ConditionPathExists=/sys/class/dmi/id/product_uuid
+
+                            [Service]
+                            Type=oneshot
+                            RemainAfterExit=yes
+                            ExecStart=/bin/bash -c 'mkdir -p /etc/nvme && echo "nqn.2014-08.org.nvmexpress:uuid:$(cat /sys/class/dmi/id/product_uuid)" > /etc/nvme/hostnqn'
+
+                            [Install]
+                            WantedBy=multi-user.target
+            - complianceType: musthave
+              objectDefinition:
+                apiVersion: machineconfiguration.openshift.io/v1
+                kind: MachineConfig
+                metadata:
+                  name: 99-worker-unique-nvme-hostnqn
+                  labels:
+                    machineconfiguration.openshift.io/role: worker
+                spec:
+                  config:
+                    ignition:
+                      version: 3.4.0
+                    systemd:
+                      units:
+                        - name: nvme-unique-hostnqn.service
+                          enabled: true
+                          contents: |
+                            [Unit]
+                            Description=Derive a unique NVMe host NQN from the system UUID
+                            Before=kubelet.service
+                            ConditionPathExists=/sys/class/dmi/id/product_uuid
+
+                            [Service]
+                            Type=oneshot
+                            RemainAfterExit=yes
+                            ExecStart=/bin/bash -c 'mkdir -p /etc/nvme && echo "nqn.2014-08.org.nvmexpress:uuid:$(cat /sys/class/dmi/id/product_uuid)" > /etc/nvme/hostnqn'
+
+                            [Install]
+                            WantedBy=multi-user.target
 ---
 # Selects clusters purely by the custom label. clusterSets: [global] is the
 # set that matches every managed cluster, and the binding for it already exists

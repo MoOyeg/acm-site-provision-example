@@ -18,6 +18,7 @@ sites/<cluster>/
 ├─ namespace.yaml            must match the cluster name; the templates hardcode it
 ├─ clusterinstance.yaml      the site definition
 └─ extra-manifests.yaml      MachineConfigs applied to this site during install
+policies/<name>/policy.yaml  ACM governance — applied to the hub, propagated by label
 ```
 
 ## Install-time customisation
@@ -59,6 +60,42 @@ with the SiteConfig operator:
 
 Pointing a site at the `ibi-*` templates changes how it is installed without
 changing the site definition itself.
+
+## Day-2 configuration: policies, not site definitions
+
+`extraManifestsRefs` is install-time and immutable, which is right for what must
+be true the moment a site boots — and wrong for anything that changes over the
+life of a fleet. That belongs in `policies/`.
+
+`policies/hpe-storage/` delivers an HPE CSI `StorageClass` and
+`VolumeSnapshotClass` to whichever clusters carry a label:
+
+```yaml
+# Placement — the whole cluster-selection rule
+clusterSets: [global]
+predicates:
+  - requiredClusterSelector:
+      labelSelector:
+        matchLabels:
+          storage.tide.lan/hpe-csi: enabled
+```
+
+Label a cluster and it joins the tier; remove the label and the `Placement`
+drops it. `remediationAction: enforce` means ACM also repairs drift — delete the
+StorageClass on a spoke and it comes back.
+
+```console
+$ oc label managedcluster <name> storage.tide.lan/hpe-csi=enabled
+$ oc get policy -n open-cluster-management-global-set
+NAME               REMEDIATION ACTION   COMPLIANCE STATE
+hpe-storageclass   enforce              Compliant
+```
+
+The policy creates the StorageClass, not the CSI driver — `csi.hpe.com` must
+already be installed on the cluster for a PVC to bind. Note also what the policy
+does *not* contain: the TrueNAS API credentials the driver needs. A `Policy` is
+ordinary hub content, readable by anyone who can read the namespace, so the
+secret is provisioned separately.
 
 ## Adding a site
 
