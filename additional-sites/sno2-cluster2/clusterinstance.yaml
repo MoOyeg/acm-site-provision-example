@@ -52,7 +52,7 @@ spec:
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/d31de764-5fac-4d5f-b189-6e1124e922ce"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/92a26dd5-6fab-47d9-ad35-c4379feedc04"
       bmcCredentialsName:
         name: sno2-bmc-credentials
       bootMACAddress: "52:54:00:a2:00:01"
