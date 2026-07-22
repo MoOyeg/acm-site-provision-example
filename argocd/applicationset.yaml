@@ -35,7 +35,7 @@ spec:
         directories:
           - path: sites/*
           - path: additional-sites/*
-          - path: sites-tnf/*
+          #- path: sites-tnf/*
   template:
     metadata:
       name: 'site-{{.path.basename}}'
