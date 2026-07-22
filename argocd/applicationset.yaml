@@ -1,17 +1,31 @@
-# Slide 15 — one Argo CD Application per site folder, generated from Git.
 #
-# The Git generator scans fleet/sites/* and creates an Application for each
-# directory it finds. Adding a new site to the fleet is therefore a matter of
-# committing a new folder: no Argo CD configuration changes, no new pipeline.
+# Ansible managed
+#
+# One Argo CD Application per site folder, generated from Git.
+#
+# The Git generator scans every directory listed below and creates an
+# Application for each folder it finds. Adding a site to the fleet is therefore
+# a matter of committing a new folder: no Argo CD configuration change, no new
+# pipeline.
+#
+# The Application name comes from the folder's basename, so moving a site
+# between directories keeps its Application identity and Argo CD just updates
+# the source path -- it does not delete and recreate the cluster.
 #
 # automated + prune + selfHeal is what makes Git the single source of truth --
-# if someone edits a ClusterInstance on the hub by hand, Argo CD puts it back.
+# edit a ClusterInstance on the hub by hand and Argo CD puts it back.
 apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: remote-sites
   namespace: openshift-gitops
 spec:
+  # Deleting an Application cascades to the ClusterInstance, which makes Hive
+  # deprovision the cluster and wipe the host. With this set, a site that leaves
+  # Git stops being managed but keeps running -- deleting a cluster stays a
+  # deliberate act rather than a side effect of renaming a folder.
+  syncPolicy:
+    preserveResourcesOnDeletion: true
   goTemplate: true
   goTemplateOptions: [missingkey=error]
   generators:
@@ -20,6 +34,8 @@ spec:
         revision: main
         directories:
           - path: sites/*
+          - path: additional-sites/*
+          - path: sites-tnf/*
   template:
     metadata:
       name: 'site-{{.path.basename}}'
