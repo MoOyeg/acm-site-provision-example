@@ -64,7 +64,7 @@ spec:
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/9f366979-6765-4610-b5ee-902dcfe0c121"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/9ae9bffa-24e3-4172-8253-c00c871ffcc6"
       bmcCredentialsName:
         name: tnf-node1-bmc-credentials
       bootMACAddress: "52:54:00:9b:37:f0"
@@ -115,7 +115,7 @@ spec:
       # The libvirt domain behind the sushy-tools Redfish emulator. The operator
       # renders the BareMetalHost from this and Ironic drives the machine over
       # Redfish virtual media.
-      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/b696a3fa-41d7-4248-bc55-59830ca46f36"
+      bmcAddress: "redfish-virtualmedia://192.168.5.132:8002/redfish/v1/Systems/80132d8a-8f3d-4103-89bf-82247a8f9d92"
       bmcCredentialsName:
         name: tnf-node2-bmc-credentials
       bootMACAddress: "52:54:00:a9:f6:cd"
