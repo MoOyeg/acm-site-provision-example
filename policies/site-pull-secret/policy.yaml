@@ -17,9 +17,20 @@
 # Adding a site becomes a Git change and nothing else.
 #
 # The credential is NOT in this file. `fromSecret` is an ACM *hub* template: it
-# is resolved by the propagator on the hub, reading the hub's own pull secret at
-# enforcement time, and only the resolved copy reaches the target. This file
-# stays safe to publish, which matters because the fleet repository is public.
+# is resolved by the propagator on the hub at enforcement time, and only the
+# resolved copy reaches the target. This file stays safe to publish, which
+# matters because the fleet repository is public.
+#
+# It reads from this policy's own namespace, not from openshift-config, because
+# hub templates are deliberately confined:
+#
+#   error calling fromSecret: failed to get the secret pull-secret from
+#   openshift-config: the namespace argument is restricted to
+#   open-cluster-management-global-set
+#
+# So the hub's pull secret is copied once into the policy namespace by
+# roles/acm_policies, and the policy fans that one copy out to every site. One
+# Ansible-managed credential instead of one per site, and still nothing in Git.
 #
 # It targets the hub itself. Site namespaces are hub objects -- they hold the
 # ClusterInstance, not anything on the spoke -- so the Placement selects
@@ -64,7 +75,8 @@ spec:
                   namespace: sno1-cluster2
                 type: kubernetes.io/dockerconfigjson
                 data:
-                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+                  .dockerconfigjson: '{{hub fromSecret "open-cluster-management-global-set" "fleet-pull-secret" ".dockerconfigjson" hub}}'
+
             - complianceType: musthave
               objectDefinition:
                 apiVersion: v1
@@ -80,7 +92,8 @@ spec:
                   namespace: sno2-cluster2
                 type: kubernetes.io/dockerconfigjson
                 data:
-                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+                  .dockerconfigjson: '{{hub fromSecret "open-cluster-management-global-set" "fleet-pull-secret" ".dockerconfigjson" hub}}'
+
             - complianceType: musthave
               objectDefinition:
                 apiVersion: v1
@@ -96,7 +109,8 @@ spec:
                   namespace: tnf
                 type: kubernetes.io/dockerconfigjson
                 data:
-                  .dockerconfigjson: '{{hub fromSecret "openshift-config" "pull-secret" ".dockerconfigjson" hub}}'
+                  .dockerconfigjson: '{{hub fromSecret "open-cluster-management-global-set" "fleet-pull-secret" ".dockerconfigjson" hub}}'
+
 ---
 # Selects the hub, because that is where the site namespaces live.
 apiVersion: cluster.open-cluster-management.io/v1beta1
